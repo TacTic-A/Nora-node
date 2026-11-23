@@ -1,0 +1,18 @@
+services:
+  nora-node:
+    # build: .
+    image: norapanel/nora-node:latest
+    restart: always
+    network_mode: host
+
+    # env_file: .env
+    environment:
+      NORA_DATA_DIR: "/var/lib/nora-node"
+      SSL_CERT_FILE: "/var/lib/nora-node/ssl_cert.pem"
+      SSL_KEY_FILE: "/var/lib/nora-node/ssl_key.pem"
+      # SSL_CLIENT_CERT_FILE: "/var/lib/nora-node/ssl_client_cert.pem"
+      # XRAY_EXECUTABLE_PATH: "/var/lib/nora-node/xray-core/xray"
+      # XRAY_ASSETS_PATH: "/var/lib/nora-node/xray-core"
+
+    volumes:
+      - /var/lib/nora-node:/var/lib/nora-node
