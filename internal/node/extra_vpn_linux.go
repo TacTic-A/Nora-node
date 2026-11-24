@@ -72,10 +72,10 @@ func filterExtraVPNInbounds(inbounds []extraRuntimeInbound, protocol string) []e
 
 func (m *extraVPNManager) assetName(name string) (string, string) {
 	asset := "nora-" + name + "-linux-" + runtime.GOARCH
-	base := "https://github.com/norapanel/nora-node/releases/latest/download/"
+	base := "https://github.com/TacTic-A/nora-node/releases/latest/download/"
 	if m.updateChannel != nil && m.updateChannel() == "dev" {
 		asset = "nora-" + name + "-dev-linux-" + runtime.GOARCH
-		base = "https://github.com/norapanel/nora-node/releases/download/dev-binaries/"
+		base = "https://github.com/TacTic-A/nora-node/releases/download/dev-binaries/"
 	}
 	return base, asset
 }

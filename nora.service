@@ -1,6 +1,6 @@
 [Unit]
 Description=Nora Node Service
-Documentation=https://github.com/norapanel/Nora-node
+Documentation=https://github.com/TacTic-A/Nora-node
 After=network.target nss-lookup.target
 
 [Service]

@@ -30,11 +30,11 @@ jobs:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           set -euo pipefail
-          tags="ghcr.io/rebeccapanel/rebecca-node:dev"
+          tags="ghcr.io/${{ github.repository_owner }}/nora-node:dev"
           dockerhub_enabled=false
           if [[ -n "${DOCKERHUB_USERNAME}" && -n "${DOCKERHUB_TOKEN}" ]]; then
             dockerhub_enabled=true
-            tags="${tags}"$'\n'"rebeccapanel/rebecca-node:dev"
+            tags="${tags}"$'\n'"${DOCKERHUB_USERNAME}/nora-node:dev"
           fi
           echo "dockerhub_enabled=${dockerhub_enabled}" >> "${GITHUB_OUTPUT}"
           {
@@ -57,9 +57,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tags="ghcr.io/rebeccapanel/rebecca-node:dev"
+          tags="ghcr.io/${{ github.repository_owner }}/nora-node:dev"
           if [[ "${{ steps.dockerhub_login.outcome }}" == "success" ]]; then
-            tags="${tags}"$'\n'"rebeccapanel/rebecca-node:dev"
+            tags="${tags}"$'\n'"${{ secrets.DOCKERHUB_USERNAME }}/nora-node:dev"
           fi
           {
             echo "tags<<EOF"

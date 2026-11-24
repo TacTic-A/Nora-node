@@ -164,10 +164,10 @@ func (m *externalProxyManager) ensureTelemtLocked() (string, error) {
 		return binary, nil
 	}
 	asset := "nora-telemt-linux-" + runtime.GOARCH
-	base := "https://github.com/norapanel/nora-node/releases/latest/download/"
+	base := "https://github.com/TacTic-A/nora-node/releases/latest/download/"
 	if m.updateChannel != nil && m.updateChannel() == "dev" {
 		asset = "nora-telemt-dev-linux-" + runtime.GOARCH
-		base = "https://github.com/norapanel/nora-node/releases/download/dev-binaries/"
+		base = "https://github.com/TacTic-A/nora-node/releases/download/dev-binaries/"
 	}
 	body, err := download(base+asset, 10*time.Minute)
 	if err != nil {

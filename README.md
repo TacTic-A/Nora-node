@@ -7,12 +7,12 @@ Nora-node is the agent that runs on each node server. It controls Xray and talks
 The node connects to the panel with the certificate and token flow in the panel. Run this on the node server:
 
 ```bash
-curl -sL https://raw.githubusercontent.com/norapanel/Nora/master/scripts/nora/nora-node-binary.sh | sudo bash -s -- install
+curl -sL https://raw.githubusercontent.com/TacTic-A/Nora/master/scripts/nora/nora-node-binary.sh | sudo bash -s -- install
 ```
 
 The installer creates a systemd service and downloads the release for the server's architecture.
 
-- Dev channel: `curl -sL https://raw.githubusercontent.com/norapanel/Nora/dev/scripts/nora/nora-node-binary.sh | sudo bash -s -- install --dev`
+- Dev channel: `curl -sL https://raw.githubusercontent.com/TacTic-A/Nora/dev/scripts/nora/nora-node-binary.sh | sudo bash -s -- install --dev`
 - Second node on the same server: add `--name nora-node2` to the install command.
 - Commands: `nora-node help`
 

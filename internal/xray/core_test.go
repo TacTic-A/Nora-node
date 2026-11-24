@@ -3,6 +3,7 @@ package xray
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -10,6 +11,9 @@ import (
 )
 
 func TestInvalidReplacementPreservesRunningCore(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping bash script mock test on windows")
+	}
 	dir := t.TempDir()
 	executable := filepath.Join(dir, "xray")
 	script := `#!/bin/sh
@@ -53,6 +57,9 @@ while :; do sleep 1; done
 }
 
 func TestRestartWaitsForPreviousProcessToExit(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping bash script mock test on windows")
+	}
 	dir := t.TempDir()
 	executable := filepath.Join(dir, "xray")
 	marker := filepath.Join(dir, "stopped")

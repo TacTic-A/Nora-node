@@ -56,7 +56,7 @@ jobs:
             -e CGO_ENABLED=0 -e ASSET_ARCH="${{ matrix.arch }}" \
             -v "$PWD/amneziawg-go:/src:ro" -v "$PWD/dist:/out" golang:1.25-alpine sh -euxc '
               cp -a /src /build && cd /build
-              go build -trimpath -ldflags="-s -w" -o "/out/rebecca-amneziawg-go-linux-${ASSET_ARCH}" .
+              go build -trimpath -ldflags="-s -w" -o "/out/nora-amneziawg-go-linux-${ASSET_ARCH}" .
             '
           docker run --rm --platform "${{ matrix.platform }}" \
             -e ASSET_ARCH="${{ matrix.arch }}" \
@@ -65,19 +65,20 @@ jobs:
               cp -a /src /build && cd /build/src
               make WITH_WGQUICK=no WITH_BASHCOMPLETION=no WITH_SYSTEMDUNITS=no LDFLAGS=-static
               strip wg
-              cp wg "/out/rebecca-amneziawg-tools-linux-${ASSET_ARCH}"
+              cp wg "/out/nora-amneziawg-tools-linux-${ASSET_ARCH}"
             '
           docker run --rm --platform "${{ matrix.platform }}" \
             -e ASSET_ARCH="${{ matrix.arch }}" -e ARCH="${{ matrix.loader_arch }}" \
             -v "$PWD/tools/build-accel-bundle.sh:/build.sh:ro" -v "$PWD/dist:/out" alpine:3.22 sh /build.sh
           sudo chown -R "$USER:$USER" dist
-          for file in dist/rebecca-*-linux-${{ matrix.arch }}*; do
+          for file in dist/nora-*-linux-${{ matrix.arch }}*; do
             [[ "$file" == *.sha256 ]] || sha256sum "$file" > "${file}.sha256"
           done
       - uses: actions/upload-artifact@v4
         with:
-          name: rebecca-extra-vpn-linux-${{ matrix.arch }}
-          path: dist/rebecca-*
+          name: nora-extra-vpn-linux-${{ matrix.arch }}
+          path: dist/nora-*
+          retention-days: 1
 
   build-patched-telemt:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'release' || github.ref_type == 'tag'
@@ -119,19 +120,20 @@ jobs:
               export RUSTFLAGS="-C target-feature=+crt-static"
               target="${RUST_ARCH}-unknown-linux-musl"
               cargo build --release --locked --target "$target"
-              cp "target/$target/release/telemt" "/out/rebecca-telemt-linux-${{ matrix.arch }}"
+              cp "target/$target/release/telemt" "/out/nora-telemt-linux-${{ matrix.arch }}"
             '
-          sudo chown "$USER:$USER" "dist/rebecca-telemt-linux-${{ matrix.arch }}"
-          sha256sum "dist/rebecca-telemt-linux-${{ matrix.arch }}" > \
-            "dist/rebecca-telemt-linux-${{ matrix.arch }}.sha256"
+          sudo chown "$USER:$USER" "dist/nora-telemt-linux-${{ matrix.arch }}"
+          sha256sum "dist/nora-telemt-linux-${{ matrix.arch }}" > \
+            "dist/nora-telemt-linux-${{ matrix.arch }}.sha256"
 
       - name: Upload patched telemt artifact
         uses: actions/upload-artifact@v4
         with:
-          name: rebecca-telemt-linux-${{ matrix.arch }}
+          name: nora-telemt-linux-${{ matrix.arch }}
           path: |
-            dist/rebecca-telemt-linux-${{ matrix.arch }}
-            dist/rebecca-telemt-linux-${{ matrix.arch }}.sha256
+            dist/nora-telemt-linux-${{ matrix.arch }}
+            dist/nora-telemt-linux-${{ matrix.arch }}.sha256
+          retention-days: 1
 
   build-linux:
     runs-on: ubuntu-latest
@@ -219,9 +221,9 @@ jobs:
       - name: Build binary
         if: steps.meta.outputs.should_build == 'true'
         env:
-          REBECCA_NODE_GOOS: linux
-          REBECCA_NODE_GOARCH: ${{ matrix.goarch }}
-          REBECCA_NODE_GOARM: ${{ matrix.goarm }}
+          NORA_NODE_GOOS: linux
+          NORA_NODE_GOARCH: ${{ matrix.goarch }}
+          NORA_NODE_GOARM: ${{ matrix.goarm }}
         run: go run ./tools/build
 
       - name: Smoke test binary
@@ -244,6 +246,7 @@ jobs:
           path: |
             dist/${{ steps.meta.outputs.node_asset_name }}
             dist/${{ steps.meta.outputs.node_asset_name }}.sha256
+          retention-days: 1
 
   build-windows-amd64:
     runs-on: windows-latest
@@ -293,8 +296,8 @@ jobs:
       - name: Build binary
         if: steps.meta.outputs.should_build == 'true'
         env:
-          REBECCA_NODE_GOOS: windows
-          REBECCA_NODE_GOARCH: amd64
+          NORA_NODE_GOOS: windows
+          NORA_NODE_GOARCH: amd64
         run: go run ./tools/build
 
       - name: Smoke test binary
@@ -317,6 +320,7 @@ jobs:
           path: |
             dist/${{ steps.meta.outputs.node_asset_name }}
             dist/${{ steps.meta.outputs.node_asset_name }}.sha256
+          retention-days: 1
 
   publish-release:
     runs-on: ubuntu-latest
@@ -380,7 +384,7 @@ jobs:
       - name: Download dev artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: rebecca-*
+          pattern: nora-*
           path: release-assets
           merge-multiple: true
 
@@ -391,46 +395,46 @@ jobs:
           mkdir -p dev-assets
 
           shopt -s nullglob
-          for file in release-assets/rebecca-node-*-linux-*; do
+          for file in release-assets/nora-node-*-linux-*; do
             [[ "$file" == *.sha256 ]] && continue
             base="$(basename "$file")"
             arch="${base##*-linux-}"
-            dest="dev-assets/rebecca-node-dev-linux-${arch}"
+            dest="dev-assets/nora-node-dev-linux-${arch}"
             cp "$file" "$dest"
             sha256sum "$dest" > "${dest}.sha256"
           done
 
-          for file in release-assets/rebecca-node-*-windows-amd64.exe; do
+          for file in release-assets/nora-node-*-windows-amd64.exe; do
             [[ "$file" == *.sha256 ]] && continue
-            dest="dev-assets/rebecca-node-dev-windows-amd64.exe"
+            dest="dev-assets/nora-node-dev-windows-amd64.exe"
             cp "$file" "$dest"
             sha256sum "$dest" > "${dest}.sha256"
           done
 
-          for file in release-assets/rebecca-telemt-linux-*; do
+          for file in release-assets/nora-telemt-linux-*; do
             [[ "$file" == *.sha256 ]] && continue
             arch="${file##*-linux-}"
-            dest="dev-assets/rebecca-telemt-dev-linux-${arch}"
+            dest="dev-assets/nora-telemt-dev-linux-${arch}"
             cp "$file" "$dest"
             sha256sum "$dest" > "${dest}.sha256"
           done
 
-          for file in release-assets/rebecca-amneziawg-*-linux-*; do
+          for file in release-assets/nora-amneziawg-*-linux-*; do
             [[ "$file" == *.sha256 ]] && continue
             base="$(basename "$file")"
-            name="${base#rebecca-}"
+            name="${base#nora-}"
             component="${name%%-linux-*}"
             arch="${base##*-linux-}"
-            dest="dev-assets/rebecca-${component}-dev-linux-${arch}"
+            dest="dev-assets/nora-${component}-dev-linux-${arch}"
             cp "$file" "$dest"
             sha256sum "$dest" > "${dest}.sha256"
           done
 
-          for file in release-assets/rebecca-accel-ppp-linux-*.tar.gz; do
+          for file in release-assets/nora-accel-ppp-linux-*.tar.gz; do
             base="$(basename "$file")"
-            arch="${base#rebecca-accel-ppp-linux-}"
+            arch="${base#nora-accel-ppp-linux-}"
             arch="${arch%.tar.gz}"
-            dest="dev-assets/rebecca-accel-ppp-dev-linux-${arch}.tar.gz"
+            dest="dev-assets/nora-accel-ppp-dev-linux-${arch}.tar.gz"
             cp "$file" "$dest"
             sha256sum "$dest" > "${dest}.sha256"
           done
@@ -445,7 +449,7 @@ jobs:
         run: |
           set -euo pipefail
           RELEASE_TAG="dev-binaries"
-          TITLE="Rebecca Node dev binaries"
+          TITLE="Nora Node dev binaries"
           NOTES="Latest successful dev binary artifacts for commit ${GITHUB_SHA}."
 
           if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
