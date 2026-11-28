@@ -161,8 +161,8 @@ func awgConfig(inbound extraRuntimeInbound) (string, error) {
 	}
 	var config strings.Builder
 	fmt.Fprintf(&config, "[Interface]\nPrivateKey = %s\nListenPort = %d\n", privateKey, inbound.Port)
-	for _, item := range []struct{ name, key string }{{"Jc", "jc"}, {"Jmin", "jmin"}, {"Jmax", "jmax"}, {"S1", "s1"}, {"S2", "s2"}, {"H1", "h1"}, {"H2", "h2"}, {"H3", "h3"}, {"H4", "h4"}} {
-		fmt.Fprintf(&config, "%s = %d\n", item.name, intSetting(inbound.Settings, item.key, 0))
+	for _, line := range awgObfuscationLines(inbound.Settings) {
+		config.WriteString(line + "\n")
 	}
 	for _, peer := range inbound.Peers {
 		if !wgPeerActive(peer) {
@@ -178,6 +178,54 @@ func awgConfig(inbound extraRuntimeInbound) (string, error) {
 		}
 	}
 	return config.String(), nil
+}
+
+func awgObfuscationLines(settings map[string]any) []string {
+	text := func(key string) string {
+		return strings.TrimSpace(strings.NewReplacer("\r", "", "\n", "").Replace(firstString(settings[key])))
+	}
+	lines := []string{}
+	for _, item := range []struct{ name, key string }{{"Jc", "jc"}, {"Jmin", "jmin"}, {"Jmax", "jmax"}, {"S1", "s1"}, {"S2", "s2"}} {
+		lines = append(lines, fmt.Sprintf("%s = %d", item.name, intSetting(settings, item.key, 0)))
+	}
+	for _, item := range []struct{ name, key string }{{"S3", "s3"}, {"S4", "s4"}} {
+		if raw, ok := settings[item.key]; ok {
+			if value := text(item.key); value != "" {
+				lines = append(lines, item.name+" = "+value)
+			} else if _, isNum := raw.(float64); isNum {
+				lines = append(lines, fmt.Sprintf("%s = %d", item.name, intSetting(settings, item.key, 0)))
+			} else if _, isInt := raw.(int); isInt {
+				lines = append(lines, fmt.Sprintf("%s = %d", item.name, intSetting(settings, item.key, 0)))
+			}
+		}
+	}
+	for _, item := range []struct{ name, key string }{{"H1", "h1"}, {"H2", "h2"}, {"H3", "h3"}, {"H4", "h4"}} {
+		value := text(item.key)
+		if value == "" {
+			if num, ok := settings[item.key].(float64); ok {
+				value = strconv.FormatInt(int64(num), 10)
+			} else {
+				value = strconv.Itoa(intSetting(settings, item.key, 0))
+			}
+		}
+		lines = append(lines, item.name+" = "+value)
+	}
+	for _, item := range []struct{ name, key string }{
+		{"I1", "i1"}, {"I2", "i2"}, {"I3", "i3"}, {"I4", "i4"}, {"I5", "i5"},
+		{"HeaderProtectionKey", "header_protection_key"}, {"ContentPaddingAddition", "content_padding_addition"},
+		{"RekeyAfterTime", "rekey_after_time"}, {"RekeyTimeout", "rekey_timeout"}, {"RejectAfterTime", "reject_after_time"},
+		{"KeepaliveTimeout", "keepalive_timeout"}, {"MaxHandshakeAttempts", "max_handshake_attempts"},
+	} {
+		if value := text(item.key); value != "" {
+			lines = append(lines, item.name+" = "+value)
+		}
+	}
+	for _, item := range []struct{ name, key string }{{"RandomTrailers", "random_trailers"}, {"DisableCookies", "disable_cookies"}} {
+		if boolValue(settings[item.key], false) {
+			lines = append(lines, item.name+" = on")
+		}
+	}
+	return lines
 }
 
 func (m *extraVPNManager) collectAWGUsageLocked() []xray.UserStat {
