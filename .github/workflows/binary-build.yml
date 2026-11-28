@@ -129,3 +129,113 @@ jobs:
           gh release view "${RELEASE_TAG}" >/dev/null 2>&1 || \
             gh release create "${RELEASE_TAG}" --title "${RELEASE_TAG}" --notes "Nora Node ${RELEASE_TAG}"
           gh release upload "${RELEASE_TAG}" release-assets/* --clobber
+
+  build-extra-vpn-assets:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'release' || github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+            loader_arch: x86_64
+          - arch: arm64
+            platform: linux/arm64
+            loader_arch: aarch64
+    steps:
+      - uses: docker/setup-qemu-action@v3
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: amnezia-vpn/amneziawg-go
+          ref: 08fe3d33bbb116be09a6183d02609311b8b0c9e8
+          path: amneziawg-go
+      - uses: actions/checkout@v4
+        with:
+          repository: amnezia-vpn/amneziawg-tools
+          ref: ee0f0a9aa34ff0a0da4b3433b9512781cfe02843
+          path: amneziawg-tools
+
+      - name: Build official AmneziaWG and SSTP runtime assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          docker run --rm --platform "${{ matrix.platform }}" \
+            -e CGO_ENABLED=0 -e ASSET_ARCH="${{ matrix.arch }}" \
+            -v "$PWD/amneziawg-go:/src:ro" -v "$PWD/dist:/out" golang:1.25-alpine sh -euxc '
+              cp -a /src /build && cd /build
+              go build -trimpath -ldflags="-s -w" -o "/out/nora-amneziawg-go-linux-${ASSET_ARCH}" .
+            '
+          docker run --rm --platform "${{ matrix.platform }}" \
+            -e ASSET_ARCH="${{ matrix.arch }}" \
+            -v "$PWD/amneziawg-tools:/src:ro" -v "$PWD/dist:/out" alpine:3.22 sh -euxc '
+              apk add --no-cache build-base linux-headers >/dev/null
+              cp -a /src /build && cd /build/src
+              make WITH_WGQUICK=no WITH_BASHCOMPLETION=no WITH_SYSTEMDUNITS=no LDFLAGS=-static
+              strip wg
+              cp wg "/out/nora-amneziawg-tools-linux-${ASSET_ARCH}"
+            '
+          docker run --rm --platform "${{ matrix.platform }}" \
+            -e ASSET_ARCH="${{ matrix.arch }}" -e ARCH="${{ matrix.loader_arch }}" \
+            -v "$PWD/tools/build-accel-bundle.sh:/build.sh:ro" -v "$PWD/dist:/out" alpine:3.22 sh /build.sh
+          sudo chown -R "$USER:$USER" dist
+          for file in dist/nora-*-linux-${{ matrix.arch }}*; do
+            [[ "$file" == *.sha256 ]] || sha256sum "$file" > "${file}.sha256"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nora-extra-vpn-linux-${{ matrix.arch }}
+          path: dist/nora-*
+
+  publish-extra-assets:
+    needs: [build, build-extra-vpn-assets]
+    if: always() && needs.build.result == 'success' && needs.build-extra-vpn-assets.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Upload extra assets to target release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets dev-assets
+          find artifacts -type f -exec cp {} release-assets/ \;
+
+          if [[ "${GITHUB_REF_TYPE}" == "tag" || "${{ github.event_name }}" == "release" ]]; then
+            RELEASE_TAG="${{ github.event.release.tag_name || github.ref_name }}"
+            gh release upload "${RELEASE_TAG}" release-assets/* --clobber
+          else
+            RELEASE_TAG="dev-binaries"
+            for file in release-assets/nora-amneziawg-*-linux-*; do
+              [[ "$file" == *.sha256 ]] && continue
+              base="$(basename "$file")"
+              name="${base#nora-}"
+              component="${name%%-linux-*}"
+              arch="${base##*-linux-}"
+              dest="dev-assets/nora-${component}-dev-linux-${arch}"
+              cp "$file" "$dest"
+              sha256sum "$dest" > "${dest}.sha256"
+            done
+            for file in release-assets/nora-accel-ppp-linux-*.tar.gz; do
+              base="$(basename "$file")"
+              arch="${base#nora-accel-ppp-linux-}"
+              arch="${arch%.tar.gz}"
+              dest="dev-assets/nora-accel-ppp-dev-linux-${arch}.tar.gz"
+              cp "$file" "$dest"
+              sha256sum "$dest" > "${dest}.sha256"
+            done
+            for attempt in 1 2 3; do
+              if gh release upload "${RELEASE_TAG}" dev-assets/* --clobber; then
+                exit 0
+              fi
+              sleep 5
+            done
+            exit 1
+          fi
