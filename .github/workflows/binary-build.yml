@@ -202,6 +202,7 @@ jobs:
       - name: Upload extra assets to target release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         shell: bash
         run: |
           set -euo pipefail
@@ -231,6 +232,8 @@ jobs:
               cp "$file" "$dest"
               sha256sum "$dest" > "${dest}.sha256"
             done
+            gh release view "${RELEASE_TAG}" >/dev/null 2>&1 || \
+              gh release create "${RELEASE_TAG}" --title "Nora Node dev binaries" --notes "Latest successful dev binary artifacts for commit ${GITHUB_SHA}." --prerelease --target "${GITHUB_SHA}"
             for attempt in 1 2 3; do
               if gh release upload "${RELEASE_TAG}" dev-assets/* --clobber; then
                 exit 0
